@@ -12,6 +12,7 @@ import math
 
 import rospy
 from geometry_msgs.msg import Twist
+from std_msgs.msg import Int16MultiArray
 
 class Velocity(object):
 
@@ -178,6 +179,7 @@ class SimpleKeyTeleop():
     def __init__(self, interface):
         self._interface = interface
         self._pub_cmd = rospy.Publisher('key_vel', Twist)
+        self._pub_joint_cmd = rospy.Publisher('key_joint_vel', Int16MultiArray)
 
         self._hz = rospy.get_param('~hz', 10)
 
@@ -185,9 +187,17 @@ class SimpleKeyTeleop():
         self._backward_rate = rospy.get_param('~backward_rate', 0.5)
         self._rotation_rate = rospy.get_param('~rotation_rate', 1.0)
         self._last_pressed = {}
+        self._last_pressed_joints = {}
         self._x = 0
         self._y = 0
         self._z = 0
+        self.joint_1 = 0
+        self.joint_2 = 0
+        self.joint_3 = 0
+        self.joint_4 = 0
+        self.joint_5 = 0
+        self.joint_6 = 0
+        self.test = "nope"
 
     movement_bindings = {
         curses.KEY_UP:    ( 1,  0, 0),
@@ -195,7 +205,22 @@ class SimpleKeyTeleop():
         curses.KEY_LEFT:  ( 0,  1, 0),
         curses.KEY_RIGHT: ( 0, -1, 0),
         curses.KEY_PPAGE: (0, 0, 1),
-        curses.KEY_NPAGE: (0, 0, -1)
+        curses.KEY_NPAGE: (0, 0, -1),
+    }
+    joint_bindings = {
+        ord('1'): (1, 0, 0, 0, 0, 0),
+        ord('a'): (-1, 0, 0, 0, 0, 0),
+        ord('2'): (0, 1, 0, 0, 0, 0),
+        ord('z'): (0, -1, 0, 0, 0, 0),
+        ord('3'): (0, 0, 1, 0, 0, 0),
+        ord('e'): (0, 0, -1, 0, 0, 0),
+        ord('4'): (0, 0, 0, 1, 0, 0),
+        ord('r'): (0, 0, 0, -1, 0, 0),
+        ord('5'): (0, 0, 0, 0, 1, 0),
+        ord('t'): (0, 0, 0, 0, -1, 0),
+        ord('6'): (0, 0, 0, 0, 0, 1),
+        ord('y'): (0, 0, 0, 0, 0, -1),
+
     }
 
     def run(self):
@@ -219,20 +244,44 @@ class SimpleKeyTeleop():
 
         return twist
 
+    def _get_joint_array(self, j1, j2, j3, j4, j5, j6):
+        joint_array = Int16MultiArray()
+        joint_array.data = [j1, j2, j3, j4, j5, j6]
+
+        return joint_array
+
     def _set_velocity(self):
         now = rospy.get_time()
         keys = []
+        keys_joints = []
         for a in self._last_pressed:
             if now - self._last_pressed[a] < 0.2:
                 keys.append(a)
+        for a in self._last_pressed_joints:
+            if now - self._last_pressed_joints[a] < 0.2:
+                keys_joints.append(a)
         x = 0.0
         y = 0.0
         z = 0.0
+        j1 = 0
+        j2 = 0
+        j3 = 0
+        j4 = 0
+        j5 = 0
+        j6 = 0
         for k in keys:
             x_tmp, y_tmp, z_tmp = self.movement_bindings[k]
             x += x_tmp
             y += y_tmp
             z += z_tmp
+        for kj in keys_joints:
+            joint1, joint2, joint3, joint4, joint5, joint6 = self.joint_bindings[kj]
+            j1 += joint1
+            j2 += joint2
+            j3 += joint3
+            j4 += joint4
+            j5 += joint5
+            j6 += joint6
         if x > 0:
             x = x * self._forward_rate
         else:
@@ -242,6 +291,12 @@ class SimpleKeyTeleop():
         self._x = x
         self._y = y
         self._z = z
+        self.joint_1 = j1
+        self.joint_2 = j2
+        self.joint_3 = j3
+        self.joint_4 = j4
+        self.joint_5 = j5
+        self.joint_6 = j6
 
     def _key_pressed(self, keycode):
         if keycode == ord('q'):
@@ -249,8 +304,9 @@ class SimpleKeyTeleop():
             rospy.signal_shutdown('Bye')
         elif keycode in self.movement_bindings:
             self._last_pressed[keycode] = rospy.get_time()
-        else:
-            print keycode
+        elif keycode in self.joint_bindings:
+            self._last_pressed_joints[keycode] = rospy.get_time()
+
 
     def _publish(self):
         self._interface.clear()
@@ -259,7 +315,9 @@ class SimpleKeyTeleop():
         self._interface.refresh()
 
         twist = self._get_twist(self._x, self._y, self._z)
+        joint_array = self._get_joint_array(self.joint_1, self.joint_2, self.joint_3, self.joint_4, self.joint_5, self.joint_6)
         self._pub_cmd.publish(twist)
+        self._pub_joint_cmd.publish(joint_array)
 
 
 def main(stdscr):
