@@ -255,10 +255,10 @@ class SimpleKeyTeleop():
         keys = []
         keys_joints = []
         for a in self._last_pressed:
-            if now - self._last_pressed[a] < 0.2:
+            if now - self._last_pressed[a] < 0.3:
                 keys.append(a)
         for a in self._last_pressed_joints:
-            if now - self._last_pressed_joints[a] < 0.2:
+            if now - self._last_pressed_joints[a] < 0.3:
                 keys_joints.append(a)
         x = 0.0
         y = 0.0
